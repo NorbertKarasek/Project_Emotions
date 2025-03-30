@@ -78,8 +78,8 @@ def main():
     print("Kształt wektora cech po ekstrakcji:", features.shape)
 
     # Wczytanie wytrenowanego modelu i skalera
-    model_path = 'model.keras'
-    scaler_path = 'scaler.pkl'
+    model_path = 'Model/model.keras'
+    scaler_path = 'Model/scaler.pkl'
 
     if not os.path.exists(model_path):
         print(f"Model nie został znaleziony pod ścieżką {model_path}")
