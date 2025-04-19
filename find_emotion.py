@@ -1,170 +1,151 @@
+import os
 import sys
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 import pickle
-import os
+import tkinter as tk
+from tkinter import filedialog, scrolledtext, messagebox
 import matplotlib.pyplot as plt
 from langchain_ollama import OllamaLLM
 
-# Włączamy niebezpieczną deserializację, jeśli to konieczne
+# Jeśli Twój model wymaga tej opcji
 tf.keras.config.enable_unsafe_deserialization()
 
 def extract_features_from_csv(filepath, desired_features=2548):
-    """Wczytuje plik CSV z surowymi danymi EEG, gdzie:
-       - Nagłówki odpowiadają nazwom elektrod (np. Fp1, AF3, ... O2)
-       - Każdy wiersz to kolejny punkt czasowy.
-       Dla każdego kanału:
-       - Oblicza FFT (transformata Fouriera) na całym szeregu czasowym,
-       - Pobiera część rzeczywistą wyników (zachowując informację o znaku),
-       - Wybiera pierwsze 'coeffs_per_channel' współczynników.
-       Łączy wyniki ze wszystkich kanałów w jeden wektor o długości 'desired_features'.
-       Jeśli wektor jest krótszy – dopełnia zerami, a jeśli dłuższy – przycina.
-    """
     if not os.path.exists(filepath):
-        print(f"Plik {filepath} nie istnieje!")
+        messagebox.showerror("Błąd", f"Plik {filepath} nie istnieje!")
         sys.exit(1)
-
-    df = pd.read_csv(filepath)
-    df = df.dropna(axis=1, how='all')  # Usuwamy kolumny, które są puste
-
-    raw_data = df.values
-    num_channels = raw_data.shape[1]
-
-    coeffs_per_channel = desired_features // num_channels
-    features = []
-
-    for i in range(num_channels):
-        channel_data = raw_data[:, i]
-        fft_vals = np.fft.fft(channel_data)
-        fft_real = np.real(fft_vals)
-        selected_coeffs = fft_real[:coeffs_per_channel]
-        features.append(selected_coeffs)
-
-    feature_vector = np.concatenate(features)
-
-    if len(feature_vector) < desired_features:
-        feature_vector = np.pad(feature_vector, (0, desired_features - len(feature_vector)))
-    elif len(feature_vector) > desired_features:
-        feature_vector = feature_vector[:desired_features]
-
-    return feature_vector
-
-
-# Inicjalizacja modelu LLM (chatbota)
-model = OllamaLLM(model="SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M")
-history = "### System: You are a helpful assistant.\n"
-
-
-def chatbot(emotion):
-    global history  # Zmieniamy zmienną 'history' na globalną
-
-    emotion_prompts = {
-        "NEUTRAL": "Mój stres jest umiarkowany i potrzebuję wskazówek jak sobie z tym poradzić (Udziel krótkiej odpowiedzi w jednym zdaniu)",
-        "POSITIVE": "Nie jestem zestresowany, możesz dać mi krótką poradę jak pozostać w tym stanie (Udziel krótkiej odpowiedzi w jednym zdaniu)?",
-        "NEGATIVE": "Jestem zestresowany i potrzebuję wskazówek jak sobie z tym poradzić (Udziel krótkiej odpowiedzi w jednym zdaniu)"
-    }
-
-    # Użyj odpowiedzi dostosowanej do emocji
-    prompt = emotion_prompts.get(emotion, 'How can I assist you today?')
-    print(f"Chatbot: {prompt}")
-
-    # Dodajemy zapytanie do historii, ale nie dodajemy odpowiedzi chatbota
-    history += f"\n### User:\n{prompt}\n"
-
-    # Wywołanie modelu LLM z emocją jako prompt
-    result = model.invoke(input=f"{history}\n### Assistant:\n")
-
-    # Pokazujemy odpowiedź chatbota
-    print("Chatbot:", result)
-    history += f"### Assistant:\n{result}\n"
-
-    # Pozwalamy użytkownikowi na kontynuowanie rozmowy po odpowiedzi
-    while True:
-        user_input = input("You: ")
-        if user_input.lower() in ["exit", "quit"]:
-            print("Chatbot: Goodbye!")
-            break
-
-        history += f"\n### User:\n{user_input}\n"
-        result = model.invoke(input=f"{history}\n### Assistant:\n")
-
-        print("Chatbot:", result)
-        history += f"{result}\n"
+    df = pd.read_csv(filepath).dropna(axis=1, how='all')
+    raw = df.values
+    num_ch = raw.shape[1]
+    coeffs = desired_features // num_ch
+    feats = [np.real(np.fft.fft(raw[:, i]))[:coeffs] for i in range(num_ch)]
+    vec = np.concatenate(feats)
+    if len(vec) < desired_features:
+        vec = np.pad(vec, (0, desired_features - len(vec)))
+    else:
+        vec = vec[:desired_features]
+    return vec.reshape(1, -1), df
 
 
 def generate_eeg_plot(df):
-    """Generuje wykres FFT dla danych EEG."""
-    # Wybieramy kolumny zaczynające się na "fft_" i kończące na "_b"
-    fft_cols = [col for col in df.columns if col.startswith("fft_") and col.endswith("_b")]
-    if fft_cols:
-        # Sortujemy kolumny według numeru, zakładając format "fft_<numer>_b"
-        fft_cols = sorted(fft_cols, key=lambda x: int(x.split('_')[1]))
-        # Pobieramy wartości z pierwszego wiersza dla tych kolumn
-        fft_values = df.loc[0, fft_cols].values.astype(float)
-        plt.figure(figsize=(12, 6))
-        plt.plot(fft_values, marker='o', linestyle='-', color='blue')
-        plt.title("Wykres sygnału EEG – FFT część b")
-        plt.xlabel("Indeks współczynnika FFT")
-        plt.ylabel("Wartość")
-        plt.grid(True)
-        plt.tight_layout()
-        plt.show()
-    else:
-        print("Brak kolumn odpowiadających FFT część b.")
+    fft_cols = [c for c in df.columns if c.startswith("fft_") and c.endswith("_b")]
+    if not fft_cols:
+        return
+    fft_cols.sort(key=lambda x: int(x.split('_')[1]))
+    vals = df.loc[0, fft_cols].astype(float).values
+    plt.figure(figsize=(8,4))
+    plt.plot(vals, marker='o', linestyle='-')
+    plt.title("EEG – FFT część b")
+    plt.xlabel("Współczynnik")
+    plt.ylabel("Amplituda")
+    plt.tight_layout()
+    plt.show()
 
 
-def main():
-    if len(sys.argv) < 2:
-        print("Użycie: python find_emotion.py <ścieżka_do_pliku_csv>")
-        sys.exit(1)
+def sanitize_response(resp: str) -> str:
+    # Wyciąga końcową część odpowiedzi po ostatnim '### Assistant:'
+    if "### Assistant:" in resp:
+        return resp.split("### Assistant:")[-1].strip()
+    return resp.strip()
 
-    csv_path = sys.argv[1]
 
-    print("Przetwarzanie danych EEG z pliku:", csv_path)
-    features = extract_features_from_csv(csv_path, desired_features=2548)
-    features = features.reshape(1, -1)
+def create_gui():
+    # Inicjalizacja modelu i historii
+    model = OllamaLLM(model="SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M")
+    history = "### System: You are a helpful assistant.\n"
 
-    print("Kształt wektora cech po ekstrakcji:", features.shape)
+    root = tk.Tk()
+    root.title("EEG Emotion Analyzer")
+    root.geometry("600x600")
 
-    # Wczytanie wytrenowanego modelu i skalera
-    model_path = 'EEG/Model/model.keras'
-    scaler_path = 'EEG/Model/scaler.pkl'
+    tk.Label(root, text="Wybierz plik CSV z danymi EEG:", pady=10).pack()
 
-    if not os.path.exists(model_path):
-        print(f"Model nie został znaleziony pod ścieżką {model_path}")
-        sys.exit(1)
-    if not os.path.exists(scaler_path):
-        print(f"Scaler nie został znaleziony pod ścieżką {scaler_path}")
-        sys.exit(1)
+    text_widget = scrolledtext.ScrolledText(root, wrap=tk.WORD, height=20)
+    text_widget.pack(fill=tk.BOTH, expand=True, padx=10)
+    text_widget.tag_config("bold", font=("TkDefaultFont", 10, "bold"))
 
-    print("Wczytywanie modelu i skalera...")
-    model = tf.keras.models.load_model(model_path)
-    with open(scaler_path, 'rb') as f:
-        scaler = pickle.load(f)
+    entry = tk.Entry(root, width=50)
+    entry.pack(pady=5)
 
-    features_scaled = scaler.transform(features)
+    send_button = tk.Button(root, text="Wyślij", state=tk.DISABLED)
+    send_button.pack(pady=5)
 
-    # Predykcja emocji
-    pred = model.predict(features_scaled)
-    predicted_class = np.argmax(pred, axis=1)
+    def insert_speaker(name, msg):
+        text_widget.insert(tk.END, name, "bold")
+        text_widget.insert(tk.END, msg + "\n\n")
+        text_widget.see(tk.END)
 
-    label_mapping = {0: "NEUTRAL", 1: "POSITIVE", 2: "NEGATIVE"}
-    predicted_index = predicted_class[0]
-    predicted_label = label_mapping.get(predicted_index, "Unknown")
+    def analyze_file():
+        nonlocal history
+        path = filedialog.askopenfilename(filetypes=[("CSV", "*.csv")])
+        if not path:
+            return
 
-    print(f"Przewidywana emocja: {predicted_label} ({predicted_index})")
+        feats, df = extract_features_from_csv(path)
 
-    # Generowanie wykresu EEG
-    df = pd.read_csv(csv_path)
-    generate_eeg_plot(df)
+        m_path = 'EEG/Model/model.keras'
+        s_path = 'EEG/Model/scaler.pkl'
+        if not os.path.exists(m_path) or not os.path.exists(s_path):
+            messagebox.showerror("Błąd", "Brak pliku modelu lub scalera!")
+            return
 
-    # Rozpocznij rozmowę z chatbotem, uwzględniając przewidywaną emocję
-    chatbot(predicted_label)
+        net = tf.keras.models.load_model(m_path)
+        with open(s_path, 'rb') as f:
+            scaler = pickle.load(f)
 
+        scaled = scaler.transform(feats)
+        pred = net.predict(scaled)
+        idx = int(np.argmax(pred, axis=1)[0])
+        label = {0: "NEUTRAL", 1: "POSITIVE", 2: "NEGATIVE"}.get(idx, "Unknown")
+
+        # Pokaż przewidywaną emocję
+        insert_speaker("Chatbot: ", f"Przewidywana emocja: {label}")
+        generate_eeg_plot(df)
+
+        # Przygotuj automatyczny prompt i wyświetl go jako You:
+        user_prompt = {
+            "NEUTRAL": "Mój stres jest umiarkowany i potrzebuję wskazówek jak sobie z tym poradzić (w jednym zdaniu)",
+            "POSITIVE": "Nie jestem zestresowany, podaj krótką radę jak pozostać w tym stanie (w jednym zdaniu)",
+            "NEGATIVE": "Jestem zestresowany i potrzebuję wskazówek jak sobie z tym poradzić (w jednym zdaniu)"
+        }[label]
+        history += f"### User: {user_prompt}\n"
+        insert_speaker("You: ", user_prompt)
+
+        # Wywołanie modelu i wyświetlenie czystej odpowiedzi
+        full_resp = model.invoke(input=history + "### Assistant:\n")
+        resp = sanitize_response(full_resp)
+        history += f"### Assistant: {resp}\n"
+        insert_speaker("Chatbot: ", resp)
+
+        send_button.config(state=tk.NORMAL)
+
+    def send_message():
+        nonlocal history
+        user = entry.get().strip()
+        if not user:
+            return
+
+        # Wyświetl prompt użytkownika
+        user_note = f"{user} (w jednym zdaniu)"
+        history += f"### User: {user_note}\n"
+        insert_speaker("You: ", user_note)
+
+        # Wywołanie modelu i wyświetlenie czystej odpowiedzi
+        full_resp = model.invoke(input=history + "### Assistant:\n")
+        resp = sanitize_response(full_resp)
+        history += f"### Assistant: {resp}\n"
+        insert_speaker("Chatbot: ", resp)
+
+        entry.delete(0, tk.END)
+
+    tk.Button(root, text="Otwórz plik", command=analyze_file).pack(pady=5)
+    send_button.config(command=send_message)
+
+    root.mainloop()
 
 if __name__ == "__main__":
-    main()
-
+    create_gui()
 
 
