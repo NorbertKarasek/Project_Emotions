@@ -1,16 +1,35 @@
 # Instrukcja
-Odpalamy program w konsoli, główny plik programu "find_emotion.py" + wskazujemy na plik .csv z uporządkowanymi danymi EEG według schematu, sample są w \Data\Samples\
+##### Odpalamy program, główny plik programu "find_emotion.py"
 
-### python find_emotion.py D:\Python_Projekty\Project_Emotions\Data\Samples\new_sample_positive.csv
+![image](https://github.com/user-attachments/assets/888e822e-1d4e-4043-b602-93eae433cbc5)
 
-Zwrot programu w konsoli (Przewidywana emocja) + wykres.
-+ CSV przyszłościowo musi dać użytkownik, którą wczytamy zamiast pliku lokalnego aby wytrenowany model (model.keras) zwrócił na emocję i wykres do niej.
-+ CSV wystarczy przekazać do wykonania find_emotion.py ... i zwrot wyników wyświetlić na froncie.
+##### Następnie odpali się nasze GUI, które czeka na otawrcie pliku z danymy EEG w CSV
 
-![image](https://github.com/user-attachments/assets/96eb1cc2-bdd4-40f4-95e6-c849f8f0fe8b)
+![image](https://github.com/user-attachments/assets/8f7ac213-9bc4-4ce3-a6b8-aa45767d16b1)
 
-+ Model językowy -> teraz należy jeszcze zaimplementować model LLM który będzie dostawał informację że użytkownik jest np. "NEGATIVE" i ma zwrócić nam tekst co z tym zrobić.
+Zwrot programu: 
+- Przewidywana emocja, która jest automatycznie ładowana do modelu LLM
+- Wykres punktowy emocji
+- Model LLM, automatycznie generuje odpowiedz na pierwsze pytanie zgodnie z emocją (pierwsze pytanie na szytwno w kodzie)
+
+![image](https://github.com/user-attachments/assets/91fd5b3d-a37d-4d81-8d54-b0b817dcd737)
+![image](https://github.com/user-attachments/assets/b5956c3d-138e-4c12-9811-04bd811093a0)
+
+
 
 # Plik Jupyter:
-### train_emotions.ipynb
-Jest pobrany z Kaggle ->> gotowiec, zmieniono tylko niektóre biblioteki na aktualne oraz scieżki do plików treingowych pobranych również z Kaggle.
+#### train_emotions.ipynb
+- Jest pobrany z Kaggle ->> gotowiec, zmieniono tylko niektóre biblioteki na aktualne oraz scieżki do plików treingowych pobranych również z Kaggle.
+- Model KERAS oraz scaler jest zapisywany po wytrenowaniu na koncu train_emotions.ipynb. Aby móc z korzystać później z wytrenowanego gotowca.
+
+# Model językowy:
+- #### Ollama - SpeakLeash/bielik-11b-v2.3-instruct-imatrix:IQ1_M (mniejszy) / SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M (większy)
+- #### inicjacja - find_emotions.py
+Należy pobrać Ollamę z [głównej strony](https://ollama.com/):
+
+![image](https://github.com/user-attachments/assets/740bb195-53bc-4fd2-a63a-7f7f39148c2a)
+
+I mieć ją odpaloną jako usługa w trakcie korzystania z programu.
+Dodatkowo należy pobrać odpowiedni model:
+- ``` ollama pull SpeakLeash/bielik-11b-v2.3-instruct-imatrix:IQ1_M ```
+- ``` ollama pull SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M ```
