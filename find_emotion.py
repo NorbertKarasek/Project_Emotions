@@ -127,6 +127,7 @@ def create_gui():
         label = {0: "NEUTRAL", 1: "POSITIVE", 2: "NEGATIVE"}.get(idx, "Unknown")
 
         # Pokaż przewidywaną emocję
+        print(f"Przewidywana emocja: {label}")
         insert_speaker("Chatbot: ", f"Przewidywana emocja: {label}")
         generate_eeg_plot(df)
 
