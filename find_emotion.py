@@ -12,6 +12,8 @@ from langchain_ollama import OllamaLLM
 # Jeśli Twój model wymaga tej opcji
 tf.keras.config.enable_unsafe_deserialization()
 
+from RAG.rag_utils import load_retriever
+
 def extract_features_from_csv(filepath, desired_features=2548):
     if not os.path.exists(filepath):
         messagebox.showerror("Błąd", f"Plik {filepath} nie istnieje!")
@@ -52,10 +54,34 @@ def sanitize_response(resp: str) -> str:
 
 
 def create_gui():
+    """Tworzy GUI do analizy emocji na podstawie EEG."""
     # Inicjalizacja modelu i historii
-    model = OllamaLLM(model="SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M")
+    model = OllamaLLM(model="SpeakLeash/bielik-11b-v2.3-instruct-imatrix:IQ1_M")
+    retriever = load_retriever("RAG/faiss_index")
     history = "### System: You are a helpful assistant.\n"
 
+    # Funkcja do pobierania odpowiedzi z FAISS
+    def is_faiss_answer_valid_llm(model, user_prompt, faiss_answer):
+        """Używa LLM do oceny, czy odpowiedź FAISS jest sensowna."""
+        check_prompt = (
+            f"Czy odpowiedź '{faiss_answer}' jest sensowna i adekwatna do pytania '{user_prompt}'? "
+            "Odpowiedz tylko TAK lub NIE."
+        )
+        result = model.invoke(input=check_prompt)
+        return "TAK" in result.upper()
+
+    def get_faiss_answer(user_prompt: str):
+        """Zwraca odpowiedź z FAISS na podstawie zapytania użytkownika, tylko jeśli jest sensowna."""
+        if not user_prompt.strip():
+            return None
+        docs = retriever.get_relevant_documents(user_prompt)
+        if docs and docs[0].page_content.strip():
+            answer = docs[0].page_content.strip()
+            if is_faiss_answer_valid_llm(model, user_prompt, answer):
+                return answer
+        return None
+
+    # Tworzenie GUI
     root = tk.Tk()
     root.title("EEG Emotion Analyzer")
     root.geometry("600x600")
@@ -113,12 +139,18 @@ def create_gui():
         history += f"### User: {user_prompt}\n"
         insert_speaker("You: ", user_prompt)
 
-        # Wywołanie modelu i wyświetlenie czystej odpowiedzi
+        # Najpierw FAISS
+        faiss_answer = get_faiss_answer(user_prompt)
+        if faiss_answer:
+            insert_speaker("Chatbot: ", f"(FAISS) {faiss_answer}")
+            send_button.config(state=tk.NORMAL)
+            return
+
+        # Dopiero jeśli FAISS nie znalazł, użyj LLM
         full_resp = model.invoke(input=history + "### Assistant:\n")
         resp = sanitize_response(full_resp)
         history += f"### Assistant: {resp}\n"
         insert_speaker("Chatbot: ", resp)
-
         send_button.config(state=tk.NORMAL)
 
     def send_message():
@@ -132,7 +164,14 @@ def create_gui():
         history += f"### User: {user_note}\n"
         insert_speaker("You: ", user_note)
 
-        # Wywołanie modelu i wyświetlenie czystej odpowiedzi
+        # Najpierw FAISS
+        faiss_answer = get_faiss_answer(user_note)
+        if faiss_answer:
+            insert_speaker("Chatbot: ", f"(FAISS) {faiss_answer}")
+            send_button.config(state=tk.NORMAL)
+            return
+
+        # Dopiero jeśli FAISS nie znalazł, użyj LLM
         full_resp = model.invoke(input=history + "### Assistant:\n")
         resp = sanitize_response(full_resp)
         history += f"### Assistant: {resp}\n"
@@ -147,5 +186,3 @@ def create_gui():
 
 if __name__ == "__main__":
     create_gui()
-
-
