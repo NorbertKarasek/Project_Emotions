@@ -18,8 +18,10 @@ def build_knowledge_base(kb_path: str = KB_PATH, index_path: str = INDEX_PATH):
     # 2. Podziel na mniejsze kawałki (np. 500 znaków każdy)
     splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     chunks = splitter.split_documents(docs)
+    print("Stworzono", len(chunks), "kawałków dokumentu.")
 
     # 3. Zrób embedding
+    print("Robię embedding...")
     embedder = OllamaEmbeddings(model="SpeakLeash/bielik-11b-v2.3-instruct-imatrix:IQ1_M")
 
     # 4. Zbuduj FAISS i zapisz na dysk

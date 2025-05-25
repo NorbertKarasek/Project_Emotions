@@ -64,17 +64,17 @@ def create_gui():
     def is_faiss_answer_valid_llm(model, user_prompt, faiss_answer):
         """Używa LLM do oceny, czy odpowiedź FAISS jest sensowna."""
         check_prompt = (
-            f"Czy odpowiedź '{faiss_answer}' jest sensowna i adekwatna do pytania '{user_prompt}'? "
-            "Odpowiedz tylko TAK lub NIE."
+            f"Czy odpowiedź: '{faiss_answer}' jest merytorycznie zgodna i bezpośrednio odnosi się do pytania: '{user_prompt}'? "
+            "Odpowiedz wyłącznie TAK lub NIE. Odpowiedź nie może być nie na temat."
         )
         result = model.invoke(input=check_prompt)
-        return "TAK" in result.upper()
+        return "TAK" in result.strip().upper().split()
 
     def get_faiss_answer(user_prompt: str):
         """Zwraca odpowiedź z FAISS na podstawie zapytania użytkownika, tylko jeśli jest sensowna."""
         if not user_prompt.strip():
             return None
-        docs = retriever.get_relevant_documents(user_prompt)
+        docs = retriever.invoke(user_prompt)  # zamiast get_relevant_documents
         if docs and docs[0].page_content.strip():
             answer = docs[0].page_content.strip()
             if is_faiss_answer_valid_llm(model, user_prompt, answer):
@@ -133,7 +133,7 @@ def create_gui():
         # Przygotuj automatyczny prompt i wyświetl go jako You:
         user_prompt = {
             "NEUTRAL": "Mój stres jest umiarkowany i potrzebuję wskazówek jak sobie z tym poradzić (w jednym zdaniu)",
-            "POSITIVE": "Nie jestem zestresowany, podaj krótką radę jak pozostać w tym stanie (w jednym zdaniu)",
+            "POSITIVE": "Jestem szczęśliwy, podaj krótką radę jak pozostać w tym stanie (w jednym zdaniu)",
             "NEGATIVE": "Jestem zestresowany i potrzebuję wskazówek jak sobie z tym poradzić (w jednym zdaniu)"
         }[label]
         history += f"### User: {user_prompt}\n"
@@ -172,7 +172,7 @@ def create_gui():
             return
 
         # Dopiero jeśli FAISS nie znalazł, użyj LLM
-        full_resp = model.invoke(input=history + "### Assistant:\n")
+        full_resp = model.invoke(input=history + "### Assistant:\n") # user_note - jeżeli skupiamy się na aktualnym pytaniu | history - jeżeli chcemy uwzględnić całą konwersację
         resp = sanitize_response(full_resp)
         history += f"### Assistant: {resp}\n"
         insert_speaker("Chatbot: ", resp)
