@@ -1,3 +1,6 @@
+
+![matrix](https://github.com/user-attachments/assets/d3a133ff-488c-419d-bb2c-f9ce7d25ae68)
+
 # Instrukcja
 ##### Odpalamy program, główny plik programu "find_emotion.py"
 
