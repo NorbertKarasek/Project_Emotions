@@ -87,3 +87,9 @@ RAG/**/chroma/
 # datasets/
 # tmp/
 # temp/
+
+# Copilot files
+.copilot/
+.copilot-codespaces/
+.copilot-global/
+copilot.data.migration.*
