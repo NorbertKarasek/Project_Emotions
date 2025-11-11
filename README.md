@@ -34,7 +34,7 @@ Zwrot programu:
 
 # Model językowy:
 - #### Ollama - SpeakLeash/bielik-11b-v2.3-instruct-imatrix:IQ1_M (mniejszy) / SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M (większy)
-- #### inicjacja - *find_emotions.py*
+- #### inicjacja - *find_emotion.py*
 Należy pobrać Ollamę z [głównej strony](https://ollama.com/):
 
 ![image](https://github.com/user-attachments/assets/740bb195-53bc-4fd2-a63a-7f7f39148c2a)
@@ -43,3 +43,14 @@ I mieć ją odpaloną jako usługa w trakcie korzystania z programu.
 Dodatkowo należy pobrać odpowiedni model:
 - ``` ollama pull SpeakLeash/bielik-11b-v2.3-instruct-imatrix:IQ1_M ```
 - ``` ollama pull SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M ```
+
+---
+## OpenAi API
+
+### inicjacja - *find_emotion_api.py*
+Program zachowuje się tak samo jak wyżej, natomiast korzysta z biblioteki *openai* celem komunikacji z platformą OpenAi API.
+
+<img width="1900" height="893" alt="image" src="https://github.com/user-attachments/assets/9efddd5f-4a03-43c2-a6d5-7fe20d259e08" />
+Wszystkie wiadomości wymieniane w chacie po wykryciu emocji odbywają się na zasadzie wymiany requestów z endpointami OpenAi.
+
+#### Aby zadziałało należy podać odpowiedni OPENAI_API_KEY w zmiennej środowiskowej.
